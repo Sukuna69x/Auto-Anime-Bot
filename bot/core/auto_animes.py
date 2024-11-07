@@ -7,7 +7,9 @@ from traceback import format_exc
 from base64 import urlsafe_b64encode
 from time import time
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
+from aiohttp import ClientResponseError
+import aiohttp
+import asyncio
 from bot import bot, bot_loop, Var, ani_cache, ffQueue, ffLock, ff_queued
 from .tordownload import TorDownloader
 from .database import db
@@ -21,7 +23,7 @@ btn_formatter = {
     '1080':'𝟭𝟬𝟴𝟬𝗽', 
     '720':'𝟳𝟮𝟬𝗽',
     '480':'𝟰𝟴𝟬𝗽',
-    '360':'𝟯𝟲𝟬𝗽'
+    '2160':'𝟮𝟭𝟲𝟬𝗽'
 }
 
 async def fetch_animes():
@@ -58,7 +60,6 @@ async def get_animes(name, torrent, force=False):
                 photo=await aniInfo.get_poster(),
                 caption=await aniInfo.get_caption()
             )
-            #post_msg = await sendMessage(Var.MAIN_CHANNEL, (await aniInfo.get_caption()).format(await aniInfo.get_poster()), invert_media=True)
             
             await asleep(1.5)
             stat_msg = await sendMessage(Var.MAIN_CHANNEL, f"‣ <b>Anime Name :</b> <b><i>{name}</i></b>\n\n<i>Downloading...</i>")
@@ -88,22 +89,22 @@ async def get_animes(name, torrent, force=False):
                 try:
                     out_path = await FFEncoder(stat_msg, dl, filename, qual).start_encode()
                 except Exception as e:
-                    await rep.report(f"Error: {e}, Cancelled,  Retry Again !", "error")
+                    await rep.report(f"Error: {e}, Cancelled, Retry Again!", "error")
                     await stat_msg.delete()
                     ffLock.release()
                     return
-                await rep.report("Succesfully Compressed Now Going To Upload...", "info")
+                await rep.report("Successfully Compressed. Now Going To Upload...", "info")
                 
                 await editMessage(stat_msg, f"‣ <b>Anime Name :</b> <b><i>{filename}</i></b>\n\n<i>Ready to Upload...</i>")
                 await asleep(1.5)
                 try:
                     msg = await TgUploader(stat_msg).upload(out_path, qual)
                 except Exception as e:
-                    await rep.report(f"Error: {e}, Cancelled,  Retry Again !", "error")
+                    await rep.report(f"Error: {e}, Cancelled, Retry Again!", "error")
                     await stat_msg.delete()
                     ffLock.release()
                     return
-                await rep.report("Succesfully Uploaded File into Tg...", "info")
+                await rep.report("Successfully Uploaded File into Tg...", "info")
                 
                 msg_id = msg.id
                 link = f"https://telegram.me/{(await bot.get_me()).username}?start={await encode('get-'+str(msg_id * abs(Var.FILE_STORE)))}"
@@ -132,4 +133,33 @@ async def extra_utils(msg_id, out_path):
         for chat_id in Var.BACKUP_CHANNEL.split():
             await msg.copy(int(chat_id))
             
-    # MediaInfo, ScreenShots, Sample Video ( Add-ons Features )
+    # MediaInfo, ScreenShots, Sample Video (Add-ons Features)
+
+# ------------------- Updated Post Data Method -------------------
+class AniLister:
+    def __init__(self, name, year):
+        self.name = name
+        self.year = year
+        self.session = aiohttp.ClientSession()
+
+    async def post_data(self):
+        retries = 3
+        for attempt in range(retries):
+            try:
+                async with self.session.post(self.url, json=self.payload) as resp:
+                    if resp.status != 200:
+                        error_html = await resp.text()  # Get the HTML response body
+                        await rep.report(f"Error: Received HTML response: {error_html}", "error")
+                        return resp.status, {}, resp.headers
+                    return resp.status, await resp.json(), resp.headers
+            except ClientResponseError as e:
+                # If it's a response error, log and retry
+                await rep.report(f"Error: ClientResponseError - {e}", "error")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    return 500, {}, {}
+            except Exception as e:
+                # Handle other exceptions
+                await rep.report(f"Error: {e}", "error")
+                return 500, {}, {}
