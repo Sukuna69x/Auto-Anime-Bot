@@ -197,9 +197,15 @@ class TextEditor:
     @handle_logs
     async def get_upname(self, qual=""):
         anime_name = self.pdata.get("anime_title")
-        codec = 'HEVC' if 'libx265' in ffargs[qual] else 'AV1' if 'libaom-av1' in ffargs[qual] else ''
+        
+        # Check if 'qual' exists in ffargs, otherwise set codec to an empty string
+        codec = 'HEVC' if 'libx265' in ffargs.get(qual, '') else 'AV1' if 'libaom-av1' in ffargs.get(qual, '') else ''
+        
         lang = 'Multi-Audio' if 'multi-audio' in self.__name.lower() else 'Sub'
+        
+        # Ensure the anime season is a string
         anime_season = str(ani_s[-1]) if (ani_s := self.pdata.get('anime_season', '01')) and isinstance(ani_s, list) else str(ani_s)
+        
         if anime_name and self.pdata.get("episode_number"):
             titles = self.adata.get('title', {})
             return f"""[S{anime_season}-{'E'+str(self.pdata.get('episode_number')) if self.pdata.get('episode_number') else ''}] {titles.get('english') or titles.get('romaji') or titles.get('native')} {'['+qual+'p]' if qual else ''} {'['+codec.upper()+'] ' if codec else ''}{'['+lang+']'} {Var.BRAND_UNAME}.mkv"""
@@ -213,7 +219,7 @@ class TextEditor:
         titles = self.adata.get("title", {})
         
         return CAPTION_FORMAT.format(
-                title=titles.get('english') or titles.get('romaji') or title.get('native'),
+                title=titles.get('english') or titles.get('romaji') or titles.get('native'),
                 form=self.adata.get("format") or "N/A",
                 genres=", ".join(f"{GENRES_EMOJI[x]} #{x.replace(' ', '_').replace('-', '_')}" for x in (self.adata.get('genres') or [])),
                 avg_score=f"{sc}%" if (sc := self.adata.get('averageScore')) else "N/A",
