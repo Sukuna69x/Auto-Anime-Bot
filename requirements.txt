@@ -4,11 +4,12 @@ aiofiles
 anitopy
 apscheduler
 dnspython
-motor==3.3.2
+motor-3.2.0
+pymongo-4.4.1
 feedparser
 psutil
 pycountry
-pyrofork==2.3.45
+pyrofork
 python-dotenv
 tgcrypto
 torrentp==0.1.7
