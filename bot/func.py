@@ -1,6 +1,6 @@
 import asyncio
 import json
-
+import time
 import os
 import subprocess
 import math
@@ -13,6 +13,8 @@ import aiohttp
 
 OK = {}
 
+def convertTime(seconds):
+    return time.strftime('%H:%M:%S', time.gmtime(seconds))
 
 async def genss(file):
     process = subprocess.Popen(
@@ -64,8 +66,8 @@ async def gen_ss_sam(hash, filename, log):
                 if not os.path.exists(out) or os.path.getsize(out) == 0:
                     log.error(str(er))
                     return (ss_path, sp_path)
-        except Exception:
-            print(e)
+        except Exception as err:
+            print(err)
         return hash, out
     except Exception as err:
         log.error(str(err))
